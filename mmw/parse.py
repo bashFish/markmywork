@@ -3,6 +3,9 @@ import pandas as pd
 import glob
 import docx
 import pickle
+import csv
+import tqdm
+import re
 
 
 def parse_essay_file(filepath):
@@ -30,6 +33,12 @@ def parse_essays(fp_root='data/input_files/essays/*'):
         all_parsed_essays.append((fp, count, count_paragraphs, essay))
     return all_parsed_essays
 
+def parse_question_explanations(fp='data/input_files/question_explanations.csv'):
+
+    question_explanations = pd.read_csv(fp, sep=';', quoting=csv.QUOTE_NONE)
+
+    return question_explanations
+
 def parse_annotations(fp='data/input_files/marked_essays_v1.csv'):
 
     marked_essays = pd.read_csv(fp)
@@ -44,6 +53,27 @@ def parse_annotations(fp='data/input_files/marked_essays_v1.csv'):
     filtered_marked_essays
 
     return marked_essays, filtered_marked_essays, questions
+
+
+def assemble_prompts(all_parsed_essays, filtered_marked_essays, questions_explanation):
+
+    all_prompts = []
+    for i,essay_array in tqdm.tqdm(enumerate(all_parsed_essays)):
+
+        essay_id = int(re.findall(r'\d+', essay_array[0])[-1])
+        cur_row = filtered_marked_essays[filtered_marked_essays['essay id'] == essay_id]
+        if len(cur_row) != 1:
+            continue
+
+        for j,k in questions_explanation.iterrows():
+            question = k.question
+            explanation = k.explanation
+            prompt = assemble_prompt_v2(essay_array[3][:-1], #implicit newline
+                                    question.strip(),
+                                    explanation.strip())
+
+            all_prompts.append((i, j, prompt, int(cur_row.iloc[0,j+1])))
+    return all_prompts
 
 
 def save_results(fp, all_parsed_essays, all_questions, all_answers):
@@ -64,8 +94,24 @@ prompt_tpl = 'Given is a student essay and a question to the essay. Please rate 
 prompt_tpl += 'Essay: """\n{essay}"""\n'
 prompt_tpl += 'Question: """\n{question}"""\n'
 prompt_tpl += 'Answer:'
-
 PROMPT_TPLS = [prompt_tpl]
+
+prompt_tpl = 'Given is a student essay and a question to the essay. Please rate the Question with a number between 0 and 3, where 0 is "not at all satisfied" and 3 is "very satisfied.".\n\n'
+prompt_tpl += 'Essay: """\n{essay}"""\n'
+prompt_tpl += 'Question: """\n{explanation}\n{question}"""\n'
+prompt_tpl += 'Answer:'
+PROMPT_TPLS.append(prompt_tpl)
+
+prompt_tpl = 'Essay:\n{essay}\n\n###\n\n'
+prompt_tpl += 'Question:\n{explanation}\n{question}\n\n###\n\n'
+prompt_tpl += 'Answer:'
+PROMPT_TPLS.append(prompt_tpl)
+
+
+def assemble_prompt_v2(essay, question, explanation, template=PROMPT_TPLS[2]):
+
+    return template.format(essay=essay,question=question,explanation=explanation)
+
 
 def assemble_prompt(essay, question, template=PROMPT_TPLS[0]):
 
