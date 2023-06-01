@@ -22,7 +22,7 @@ def parse_essay_file(filepath):
         essay += p.text.strip().strip('\n')+'\n'
     return (filepath, count_paragraphs, count, essay)
 
-def parse_essays(fp_root='data/input_files/essays/*'):
+def parse_essays(fp_root='data/questionaire_files/essays/*'):
 
     all_essays_filepaths = glob.glob(fp_root)
     all_parsed_essays = []
@@ -33,13 +33,13 @@ def parse_essays(fp_root='data/input_files/essays/*'):
         all_parsed_essays.append((fp, count, count_paragraphs, essay))
     return all_parsed_essays
 
-def parse_question_explanations(fp='data/input_files/question_explanations.csv'):
+def parse_question_explanations(fp='data/questionaire_files/question_explanations.csv'):
 
     question_explanations = pd.read_csv(fp, sep=';', quoting=csv.QUOTE_NONE)
 
     return question_explanations
 
-def parse_annotations(fp='data/input_files/marked_essays_v1.csv'):
+def parse_annotations(fp='data/questionaire_files/marked_essays_v1.csv'):
 
     marked_essays = pd.read_csv(fp)
     questions = list(marked_essays.keys()[1:])
